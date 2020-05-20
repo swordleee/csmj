@@ -1,0 +1,59 @@
+1）安装基础库
+   libev-4.15.tar.gz
+   jsoncpp-src-0.6.0-rc2.tar.gz
+   redis和hiredis
+
+   上面三个，属于通用库，一般系统管理员会提前安装好。
+
+   rapidjson-master.zip 需要额外安装
+   指令列表：
+   unzip rapidjson-master.zip
+   cd rapidjson-master
+   cmake .
+   make
+   make install
+
+2）配置日志服务
+
+  第一步：
+  编辑 /etc/yum.repos.d/rsyslog.repo 输入
+[rsyslog_v8]
+name=Adiscon CentOS-$releasever - local packages for $basearch
+baseurl=http://rpms.adiscon.com/v8-stable/epel-$releasever/$basearch
+enabled=1
+gpgcheck=0
+gpgkey=http://rpms.adiscon.com/RPM-GPG-KEY-Adiscon
+protect=1
+
+  第二步：
+  yum install rsyslog
+
+  第三步：
+  建立日志目录 mkdir -p /data/logs/ry_platform_csmj
+  更改日志目录权限 chmod ugo=rw -R /data/logs
+
+  第四步：
+  编辑/etc/rsyslog.d/ry_platform_csmj.conf 输入
+if $programname contains "ry_platform_csmj" then /data/logs/ry_platform_csmj/ry_platform_csmj.log
+if $programname contains "ry_platform_csmj" and $syslogseverity-text == "error" then /data/logs/ry_platform_csmj/ry_platform_csmj.log
+:programname,contains,"ry_platform_csmj" ~
+
+  编辑/etc/rsyslog.conf，尾部加入
+  $SystemLogRateLimitInterval 0
+  然后执行 service rsyslog restart
+  
+  第五步：
+  编辑 /etc/logrotate.d/ry_platform_csmj 输入
+/data/logs/ry_platform_csmj/*.log
+{
+    size 100M
+    rotate 72
+    create
+    sharedscripts
+    postrotate
+        /bin/kill -HUP `cat /var/run/syslogd.pid 2> /dev/null` 2> /dev/null || true
+    endscript
+}
+
+  并执行crontab -e，输入
+  1 * *  *  *  /usr/sbin/logrotate -f /etc/logrotate.d/ry_platform_csmj
